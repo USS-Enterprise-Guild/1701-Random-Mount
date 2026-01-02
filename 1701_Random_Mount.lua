@@ -239,25 +239,55 @@ local function GetBagMounts(filter)
     return mounts
 end
 
--- Scan spellbook for mount spells
+-- Scan spellbook for mount spells (uses ZMounts tab on Turtle WoW)
 local function GetSpellMounts(filter)
     local mounts = {}
-    local i = 1
 
-    while true do
-        local spellName = GetSpellName(i, BOOKTYPE_SPELL)
-        if not spellName then
+    -- Find the ZMounts tab
+    local numTabs = GetNumSpellTabs()
+    local mountTabOffset = nil
+    local mountTabCount = nil
+
+    for tab = 1, numTabs do
+        local name, texture, offset, numSpells = GetSpellTabInfo(tab)
+        if name == "ZMounts" then
+            mountTabOffset = offset
+            mountTabCount = numSpells
             break
         end
+    end
 
-        if IsMountSpell(spellName) and MatchesFilter(spellName, filter) then
-            table.insert(mounts, {
-                type = "spell",
-                name = spellName,
-                spellIndex = i
-            })
+    -- If ZMounts tab found, get all spells from it
+    if mountTabOffset and mountTabCount then
+        for i = 1, mountTabCount do
+            local spellIndex = mountTabOffset + i
+            local spellName = GetSpellName(spellIndex, BOOKTYPE_SPELL)
+            if spellName and MatchesFilter(spellName, filter) then
+                table.insert(mounts, {
+                    type = "spell",
+                    name = spellName,
+                    spellIndex = spellIndex
+                })
+            end
         end
-        i = i + 1
+    else
+        -- Fallback: scan all spells using pattern matching (for non-Turtle WoW)
+        local i = 1
+        while true do
+            local spellName = GetSpellName(i, BOOKTYPE_SPELL)
+            if not spellName then
+                break
+            end
+
+            if IsMountSpell(spellName) and MatchesFilter(spellName, filter) then
+                table.insert(mounts, {
+                    type = "spell",
+                    name = spellName,
+                    spellIndex = i
+                })
+            end
+            i = i + 1
+        end
     end
 
     return mounts
