@@ -1,5 +1,5 @@
 --[[
-    1701 Random Mount - Random Mount Selector for WoW 1.12
+    1701 Random Mount - Random Mount Selector for WoW 1.12 / Turtle WoW
 
     Usage: /mount [filter]
 
@@ -8,6 +8,7 @@
         /mount turtle   - Random turtle mount
         /mount tiger    - Random tiger mount
         /mount epic     - Random epic mount
+        /mount debug    - Show detected mounts and spellbook contents
 ]]
 
 RandomMount1701 = {}
@@ -141,7 +142,7 @@ local MOUNT_PATTERNS = {
     "Whistle of",
 }
 
--- Class mount spells
+-- Class mount spells (always detected regardless of pattern)
 local CLASS_MOUNT_SPELLS = {
     -- Paladin
     ["Summon Warhorse"] = true,
@@ -150,6 +151,35 @@ local CLASS_MOUNT_SPELLS = {
     ["Summon Felsteed"] = true,
     ["Summon Dreadsteed"] = true,
 }
+
+-- Check if a spell name matches mount patterns
+local function IsMountSpell(spellName)
+    if not spellName then return false end
+
+    -- Always include class mount spells
+    if CLASS_MOUNT_SPELLS[spellName] then
+        return true
+    end
+
+    local lowerName = string.lower(spellName)
+
+    -- Check for common mount keywords
+    if string.find(lowerName, "mount") or
+       string.find(lowerName, "summon") or
+       string.find(lowerName, "reins") or
+       string.find(lowerName, "riding") then
+        return true
+    end
+
+    -- Check against known mount patterns
+    for _, pattern in ipairs(MOUNT_PATTERNS) do
+        if string.find(lowerName, string.lower(pattern)) then
+            return true
+        end
+    end
+
+    return false
+end
 
 -- Check if an item name matches mount patterns
 local function IsMountItem(itemName)
@@ -209,7 +239,7 @@ local function GetBagMounts(filter)
     return mounts
 end
 
--- Scan spellbook for class mount spells
+-- Scan spellbook for mount spells
 local function GetSpellMounts(filter)
     local mounts = {}
     local i = 1
@@ -220,7 +250,7 @@ local function GetSpellMounts(filter)
             break
         end
 
-        if CLASS_MOUNT_SPELLS[spellName] and MatchesFilter(spellName, filter) then
+        if IsMountSpell(spellName) and MatchesFilter(spellName, filter) then
             table.insert(mounts, {
                 type = "spell",
                 name = spellName,
@@ -287,9 +317,47 @@ local function DoRandomMount(filter)
     UseMount(mount)
 end
 
+-- Debug function to show detected mounts and spellbook contents
+local function DoDebug()
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_Random_Mount Debug:|r Scanning...")
+
+    -- Show detected mounts
+    local mounts = GetAllMounts(nil)
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00Detected Mounts (" .. table.getn(mounts) .. "):|r")
+    for _, mount in ipairs(mounts) do
+        DEFAULT_CHAT_FRAME:AddMessage("  [" .. mount.type .. "] " .. mount.name)
+    end
+
+    -- Show first 50 spells from spellbook for debugging
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Spellbook Sample (first 50):|r")
+    local i = 1
+    while i <= 50 do
+        local spellName = GetSpellName(i, BOOKTYPE_SPELL)
+        if not spellName then
+            break
+        end
+        local detected = IsMountSpell(spellName) and " |cFF00FF00[MOUNT]|r" or ""
+        DEFAULT_CHAT_FRAME:AddMessage("  " .. i .. ": " .. spellName .. detected)
+        i = i + 1
+    end
+
+    if i > 50 then
+        DEFAULT_CHAT_FRAME:AddMessage("  ... (more spells not shown)")
+    end
+end
+
 -- Slash command handler
 local function SlashCmdHandler(msg)
-    DoRandomMount(msg)
+    -- Trim whitespace
+    if msg then
+        msg = string.gsub(msg, "^%s*(.-)%s*$", "%1")
+    end
+
+    if msg == "debug" then
+        DoDebug()
+    else
+        DoRandomMount(msg)
+    end
 end
 
 -- Create addon frame for event handling
