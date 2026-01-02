@@ -321,6 +321,14 @@ end
 local function DoDebug()
     DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_Random_Mount Debug:|r Scanning...")
 
+    -- Show spell tab info
+    local numTabs = GetNumSpellTabs()
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF00FFSpellbook Tabs (" .. numTabs .. "):|r")
+    for tab = 1, numTabs do
+        local name, texture, offset, numSpells = GetSpellTabInfo(tab)
+        DEFAULT_CHAT_FRAME:AddMessage("  Tab " .. tab .. ": " .. (name or "?") .. " (offset=" .. offset .. ", count=" .. numSpells .. ")")
+    end
+
     -- Show detected mounts
     local mounts = GetAllMounts(nil)
     DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00Detected Mounts (" .. table.getn(mounts) .. "):|r")
@@ -328,22 +336,39 @@ local function DoDebug()
         DEFAULT_CHAT_FRAME:AddMessage("  [" .. mount.type .. "] " .. mount.name)
     end
 
-    -- Show first 50 spells from spellbook for debugging
-    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Spellbook Sample (first 50):|r")
+    -- Count total spells and show all with mount-like names
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFFF00Scanning all spells for mount-like names:|r")
     local i = 1
-    while i <= 50 do
+    local totalSpells = 0
+    while true do
         local spellName = GetSpellName(i, BOOKTYPE_SPELL)
         if not spellName then
             break
         end
-        local detected = IsMountSpell(spellName) and " |cFF00FF00[MOUNT]|r" or ""
-        DEFAULT_CHAT_FRAME:AddMessage("  " .. i .. ": " .. spellName .. detected)
+        totalSpells = i
+
+        -- Show spells that look like they might be mounts
+        local lowerName = string.lower(spellName)
+        local looksLikeMount = IsMountSpell(spellName) or
+            string.find(lowerName, "horse") or
+            string.find(lowerName, "ram") or
+            string.find(lowerName, "wolf") or
+            string.find(lowerName, "raptor") or
+            string.find(lowerName, "kodo") or
+            string.find(lowerName, "tiger") or
+            string.find(lowerName, "saber") or
+            string.find(lowerName, "strider") or
+            string.find(lowerName, "skeletal") or
+            string.find(lowerName, "turtle") or
+            string.find(lowerName, "qiraji")
+
+        if looksLikeMount then
+            local detected = IsMountSpell(spellName) and " |cFF00FF00[DETECTED]|r" or " |cFFFF0000[MISSED]|r"
+            DEFAULT_CHAT_FRAME:AddMessage("  " .. i .. ": " .. spellName .. detected)
+        end
         i = i + 1
     end
-
-    if i > 50 then
-        DEFAULT_CHAT_FRAME:AddMessage("  ... (more spells not shown)")
-    end
+    DEFAULT_CHAT_FRAME:AddMessage("Total spells scanned: " .. totalSpells)
 end
 
 -- Slash command handler
