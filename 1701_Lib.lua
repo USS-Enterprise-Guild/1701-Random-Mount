@@ -157,6 +157,14 @@ function Lib1701.AddToGroup(groups, groupName, filter, getAllItemsFn, exclusions
     local added = {}
     local skipped = {}
 
+    if not groups then
+        return {}, {}, false
+    end
+
+    if not getAllItemsFn then
+        return added, skipped, false
+    end
+
     -- Get or create group
     local members, storedName = Lib1701.GetGroup(groups, groupName)
     local isNewGroup = (members == nil)
