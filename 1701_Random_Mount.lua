@@ -225,14 +225,14 @@ local function MatchesFilter(itemName, filter)
 end
 
 -- Check if mount should be included (handles exclusions and exact match bypass)
-local function ShouldIncludeMount(mountName, filter)
+local function ShouldIncludeMount(mountName, filter, skipExclusions)
     -- Exact match bypasses exclusions
     if Lib1701.IsExactMatch(mountName, filter) then
         return true
     end
 
-    -- Check exclusions
-    if Lib1701.IsExcluded(RandomMount1701_Data.exclusions, mountName) then
+    -- Check exclusions (unless skipped for group/debug operations)
+    if not skipExclusions and Lib1701.IsExcluded(RandomMount1701_Data.exclusions, mountName) then
         return false
     end
 
@@ -241,7 +241,7 @@ local function ShouldIncludeMount(mountName, filter)
 end
 
 -- Scan bags for mount items
-local function GetBagMounts(filter)
+local function GetBagMounts(filter, skipExclusions)
     local mounts = {}
 
     for bag = 0, 4 do
@@ -251,7 +251,7 @@ local function GetBagMounts(filter)
             if itemLink then
                 -- Extract item name from link
                 local _, _, itemName = string.find(itemLink, "%[(.+)%]")
-                if itemName and IsMountItem(itemName) and ShouldIncludeMount(itemName, filter) then
+                if itemName and IsMountItem(itemName) and ShouldIncludeMount(itemName, filter, skipExclusions) then
                     table.insert(mounts, {
                         type = "item",
                         name = itemName,
@@ -267,7 +267,7 @@ local function GetBagMounts(filter)
 end
 
 -- Scan spellbook for mount spells (uses ZMounts tab on Turtle WoW)
-local function GetSpellMounts(filter)
+local function GetSpellMounts(filter, skipExclusions)
     local mounts = {}
 
     -- Find the ZMounts tab
@@ -289,7 +289,7 @@ local function GetSpellMounts(filter)
         for i = 1, mountTabCount do
             local spellIndex = mountTabOffset + i
             local spellName = GetSpellName(spellIndex, BOOKTYPE_SPELL)
-            if spellName and ShouldIncludeMount(spellName, filter) then
+            if spellName and ShouldIncludeMount(spellName, filter, skipExclusions) then
                 table.insert(mounts, {
                     type = "spell",
                     name = spellName,
@@ -306,7 +306,7 @@ local function GetSpellMounts(filter)
                 break
             end
 
-            if IsMountSpell(spellName) and ShouldIncludeMount(spellName, filter) then
+            if IsMountSpell(spellName) and ShouldIncludeMount(spellName, filter, skipExclusions) then
                 table.insert(mounts, {
                     type = "spell",
                     name = spellName,
@@ -321,17 +321,17 @@ local function GetSpellMounts(filter)
 end
 
 -- Get all available mounts
-local function GetAllMounts(filter)
+local function GetAllMounts(filter, skipExclusions)
     local allMounts = {}
 
     -- Get bag mounts
-    local bagMounts = GetBagMounts(filter)
+    local bagMounts = GetBagMounts(filter, skipExclusions)
     for _, mount in ipairs(bagMounts) do
         table.insert(allMounts, mount)
     end
 
     -- Get spell mounts
-    local spellMounts = GetSpellMounts(filter)
+    local spellMounts = GetSpellMounts(filter, skipExclusions)
     for _, mount in ipairs(spellMounts) do
         table.insert(allMounts, mount)
     end
@@ -347,7 +347,7 @@ local function GetGroupMounts(groupName)
     end
 
     local mounts = {}
-    local allMounts = GetAllMounts(nil)  -- Get all mounts without filter
+    local allMounts = GetAllMounts(nil, true)  -- Get all mounts, skip exclusions (groups bypass exclusions)
 
     for _, member in ipairs(members) do
         for _, mount in ipairs(allMounts) do
@@ -408,8 +408,8 @@ local function DoDebug()
         DEFAULT_CHAT_FRAME:AddMessage("  Tab " .. tab .. ": " .. (name or "?") .. " (offset=" .. offset .. ", count=" .. numSpells .. ")")
     end
 
-    -- Show detected mounts
-    local mounts = GetAllMounts(nil)
+    -- Show detected mounts (skip exclusions to show all)
+    local mounts = GetAllMounts(nil, true)
     DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00Detected Mounts (" .. table.getn(mounts) .. "):|r")
     for _, mount in ipairs(mounts) do
         DEFAULT_CHAT_FRAME:AddMessage("  [" .. mount.type .. "] " .. mount.name)
@@ -465,7 +465,7 @@ local function HandleExclude(args)
     local added, alreadyExcluded = Lib1701.AddExclusions(
         RandomMount1701_Data.exclusions,
         args,
-        function() return GetAllMounts(nil) end
+        function() return GetAllMounts(nil, true) end  -- Skip exclusions to see all mounts
     )
 
     if table.getn(added) > 0 then
@@ -538,7 +538,7 @@ local function HandleGroupAdd(args)
             RandomMount1701_Data.groups,
             groupName,
             f,
-            function() return GetAllMounts(nil) end,
+            function() return GetAllMounts(nil, true) end,  -- Skip exclusions, let AddToGroup handle exact match bypass
             RandomMount1701_Data.exclusions
         )
         for _, name in ipairs(added) do table.insert(allAdded, name) end
