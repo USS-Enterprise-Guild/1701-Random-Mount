@@ -495,6 +495,152 @@ local function HandleExcludeList()
     end
 end
 
+-- Handle /mount group add <groupname> <filter or CSV>
+local function HandleGroupAdd(args)
+    if not args or args == "" then
+        Msg("Usage: /mount group add <groupname> <filter or mounts>")
+        return
+    end
+
+    -- Parse: first word is group name, rest is filter/CSV
+    local _, _, groupName, filter = string.find(args, "^(%S+)%s+(.+)$")
+    if not groupName or not filter then
+        Msg("Usage: /mount group add <groupname> <filter or mounts>")
+        return
+    end
+
+    -- Check for reserved names
+    local reserved = {debug=1, exclude=1, unexclude=1, excludelist=1, group=1, groups=1}
+    if reserved[string.lower(groupName)] then
+        Msg("Cannot use reserved name '" .. groupName .. "' as group name")
+        return
+    end
+
+    local allAdded = {}
+    local allSkipped = {}
+    local isNewGroup = false
+
+    -- Parse CSV and process each filter
+    local filters = Lib1701.ParseCSV(filter)
+    for _, f in ipairs(filters) do
+        local added, skipped, isNew = Lib1701.AddToGroup(
+            RandomMount1701_Data.groups,
+            groupName,
+            f,
+            function() return GetAllMounts(nil) end,
+            RandomMount1701_Data.exclusions
+        )
+        for _, name in ipairs(added) do table.insert(allAdded, name) end
+        for _, name in ipairs(skipped) do table.insert(allSkipped, name) end
+        if isNew then isNewGroup = true end
+    end
+
+    if table.getn(allAdded) > 0 then
+        local prefix = isNewGroup and "Created group '" or "Added to '"
+        local msg = prefix .. groupName .. "': " .. table.concat(allAdded, ", ") .. " (" .. table.getn(allAdded) .. " mounts)"
+        if table.getn(allSkipped) > 0 then
+            msg = msg .. ", skipped " .. table.getn(allSkipped) .. " excluded"
+        end
+        Msg(msg)
+    elseif table.getn(allSkipped) > 0 then
+        Msg("All matching mounts were excluded (" .. table.getn(allSkipped) .. " skipped)")
+    else
+        Msg("No mounts found matching '" .. filter .. "'")
+    end
+end
+
+-- Handle /mount group remove <groupname> <filter or CSV>
+local function HandleGroupRemove(args)
+    if not args or args == "" then
+        Msg("Usage: /mount group remove <groupname> <filter or mounts>")
+        return
+    end
+
+    local _, _, groupName, filter = string.find(args, "^(%S+)%s+(.+)$")
+    if not groupName or not filter then
+        Msg("Usage: /mount group remove <groupname> <filter or mounts>")
+        return
+    end
+
+    -- Check if group exists
+    if not Lib1701.GetGroup(RandomMount1701_Data.groups, groupName) then
+        Msg("Group '" .. groupName .. "' does not exist")
+        return
+    end
+
+    local allRemoved = {}
+    local groupDeleted = false
+
+    -- Parse CSV and process each filter
+    local filters = Lib1701.ParseCSV(filter)
+    for _, f in ipairs(filters) do
+        local removed, deleted = Lib1701.RemoveFromGroup(RandomMount1701_Data.groups, groupName, f)
+        for _, name in ipairs(removed) do table.insert(allRemoved, name) end
+        if deleted then groupDeleted = true end
+    end
+
+    if table.getn(allRemoved) > 0 then
+        local msg = "Removed from '" .. groupName .. "': " .. table.concat(allRemoved, ", ") .. " (" .. table.getn(allRemoved) .. " mounts)"
+        if groupDeleted then
+            msg = msg .. " - group deleted (empty)"
+        end
+        Msg(msg)
+    else
+        Msg("No mounts found matching '" .. filter .. "' in group '" .. groupName .. "'")
+    end
+end
+
+-- Handle /mount group list <groupname>
+local function HandleGroupList(groupName)
+    if not groupName or groupName == "" then
+        Msg("Usage: /mount group list <groupname>")
+        return
+    end
+
+    local members = Lib1701.GetGroup(RandomMount1701_Data.groups, groupName)
+    if not members then
+        Msg("Group '" .. groupName .. "' does not exist")
+    else
+        Msg("Group '" .. groupName .. "' (" .. table.getn(members) .. "): " .. table.concat(members, ", "))
+    end
+end
+
+-- Handle /mount groups
+local function HandleGroupsList()
+    local groups = RandomMount1701_Data.groups
+    local names = {}
+    for name, members in pairs(groups) do
+        table.insert(names, name .. " (" .. table.getn(members) .. ")")
+    end
+
+    if table.getn(names) == 0 then
+        Msg("No mount groups defined")
+    else
+        Msg("Mount groups: " .. table.concat(names, ", "))
+    end
+end
+
+-- Handle /mount group <subcommand>
+local function HandleGroup(args)
+    if not args or args == "" then
+        Msg("Usage: /mount group <add|remove|list> ...")
+        return
+    end
+
+    local _, _, subCmd, rest = string.find(args, "^(%S+)%s*(.*)$")
+    subCmd = string.lower(subCmd or "")
+
+    if subCmd == "add" then
+        HandleGroupAdd(rest)
+    elseif subCmd == "remove" then
+        HandleGroupRemove(rest)
+    elseif subCmd == "list" then
+        HandleGroupList(rest)
+    else
+        Msg("Usage: /mount group <add|remove|list> ...")
+    end
+end
+
 -- Slash command handler
 local function SlashCmdHandler(msg)
     -- Trim whitespace
