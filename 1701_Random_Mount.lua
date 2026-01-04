@@ -213,6 +213,22 @@ local function MatchesFilter(itemName, filter)
     return string.find(string.lower(itemName), string.lower(filter))
 end
 
+-- Check if mount should be included (handles exclusions and exact match bypass)
+local function ShouldIncludeMount(mountName, filter)
+    -- Exact match bypasses exclusions
+    if Lib1701.IsExactMatch(mountName, filter) then
+        return true
+    end
+
+    -- Check exclusions
+    if Lib1701.IsExcluded(RandomMount1701_Data.exclusions, mountName) then
+        return false
+    end
+
+    -- Apply normal filter
+    return MatchesFilter(mountName, filter)
+end
+
 -- Scan bags for mount items
 local function GetBagMounts(filter)
     local mounts = {}
@@ -224,7 +240,7 @@ local function GetBagMounts(filter)
             if itemLink then
                 -- Extract item name from link
                 local _, _, itemName = string.find(itemLink, "%[(.+)%]")
-                if itemName and IsMountItem(itemName) and MatchesFilter(itemName, filter) then
+                if itemName and IsMountItem(itemName) and ShouldIncludeMount(itemName, filter) then
                     table.insert(mounts, {
                         type = "item",
                         name = itemName,
@@ -262,7 +278,7 @@ local function GetSpellMounts(filter)
         for i = 1, mountTabCount do
             local spellIndex = mountTabOffset + i
             local spellName = GetSpellName(spellIndex, BOOKTYPE_SPELL)
-            if spellName and MatchesFilter(spellName, filter) then
+            if spellName and ShouldIncludeMount(spellName, filter) then
                 table.insert(mounts, {
                     type = "spell",
                     name = spellName,
@@ -279,7 +295,7 @@ local function GetSpellMounts(filter)
                 break
             end
 
-            if IsMountSpell(spellName) and MatchesFilter(spellName, filter) then
+            if IsMountSpell(spellName) and ShouldIncludeMount(spellName, filter) then
                 table.insert(mounts, {
                     type = "spell",
                     name = spellName,
