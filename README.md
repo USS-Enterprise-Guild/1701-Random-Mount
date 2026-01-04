@@ -6,8 +6,11 @@ A World of Warcraft 1.12 addon that randomly selects and uses a mount from your 
 
 - Randomly select from all available mounts with a single command
 - Filter mounts by keyword (e.g., `/mount tiger` for tiger mounts only)
+- **Mount exclusions** - Permanently exclude mounts from random selection
+- **Custom groups** - Create named groups for quick access to mount subsets
 - Automatic detection of mounts from the ZMounts spellbook tab (Turtle WoW)
 - Fallback pattern matching for vanilla WoW mount detection
+- Saved variables persist exclusions and groups between sessions
 - Debug command to troubleshoot mount detection
 
 ## Installation
@@ -24,16 +27,53 @@ A World of Warcraft 1.12 addon that randomly selects and uses a mount from your 
 |---------|-------------|
 | `/mount` | Use a random mount from your collection |
 | `/mount <filter>` | Use a random mount matching the filter |
+| `/mount <groupname>` | Use a random mount from a saved group |
 | `/mount debug` | Show detected mounts and spellbook info |
+
+### Exclusion Commands
+
+| Command | Description |
+|---------|-------------|
+| `/mount exclude <filter>` | Exclude mounts matching the filter |
+| `/mount unexclude <filter>` | Remove mounts from exclusion list |
+| `/mount excludelist` | Show all excluded mounts |
+
+**Note:** Using an exact mount name (e.g., `/mount Admiral Grumbleshell`) bypasses exclusions.
+
+### Group Commands
+
+| Command | Description |
+|---------|-------------|
+| `/mount group add <name> <filter>` | Add matching mounts to a group |
+| `/mount group add <name> <mount1, mount2>` | Add specific mounts (CSV) to a group |
+| `/mount group remove <name> <filter>` | Remove matching mounts from a group |
+| `/mount group list <name>` | Show all mounts in a group |
+| `/mount groups` | List all defined groups |
+
+**Note:** Groups bypass exclusions - excluded mounts can still be used via groups.
 
 ### Examples
 
 ```
-/mount              -- Random mount from all available
-/mount turtle       -- Random turtle mount
-/mount tiger        -- Random tiger mount
-/mount swift        -- Random swift (epic) mount
-/mount grumbleshell -- Specifically Admiral Grumbleshell
+/mount                      -- Random mount from all available
+/mount turtle               -- Random turtle mount
+/mount tiger                -- Random tiger mount
+/mount swift                -- Random swift (epic) mount
+/mount Admiral Grumbleshell -- Specifically Admiral Grumbleshell (exact match)
+
+-- Exclusions
+/mount exclude turtle       -- Exclude all turtle mounts
+/mount exclude Riding Turtle, Sea Turtle  -- Exclude specific mounts
+/mount unexclude turtle     -- Re-include turtle mounts
+/mount excludelist          -- Show what's excluded
+
+-- Groups
+/mount group add favorites tiger, raptor   -- Create "favorites" with tigers and raptors
+/mount group add pvp Black War             -- Add all Black War mounts to "pvp"
+/mount favorites            -- Random mount from favorites group
+/mount group list favorites -- Show mounts in favorites
+/mount groups               -- List all groups
+/mount group remove pvp wolf -- Remove wolves from pvp group
 ```
 
 ## Macros
@@ -66,6 +106,14 @@ Different mounts for different modifiers:
 
 ```
 /run local f=IsShiftKeyDown() and "Grumbleshell" or IsControlKeyDown() and "Tiger" or ""; SlashCmdList["RANDOMMOUNT1701"](f)
+```
+
+### Group-Based Macro
+
+Use a group when holding Shift, otherwise random from all:
+
+```
+/run SlashCmdList["RANDOMMOUNT1701"](IsShiftKeyDown() and "favorites" or "")
 ```
 
 ## How It Works
@@ -106,6 +154,8 @@ RandomMount1701.DoRandomMount("swift")
 
 ## Version History
 
+- **1.3.1** - Excluded mounts skipped when adding to groups, exact match bypasses exclusions
+- **1.3.0** - Add mount exclusions and groups feature
 - **1.2.0** - Use ZMounts spellbook tab for mount detection on Turtle WoW
 - **1.1.0** - Add spellbook mount detection and `/mount debug` command
 - **1.0.0** - Initial release
