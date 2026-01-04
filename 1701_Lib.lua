@@ -135,3 +135,102 @@ function Lib1701.RemoveExclusions(exclusions, filter)
 
     return removed, notFound
 end
+
+-- Get a group by name (case-insensitive)
+function Lib1701.GetGroup(groups, groupName)
+    if not groups or not groupName then
+        return nil
+    end
+    local lowerName = string.lower(groupName)
+    for name, members in pairs(groups) do
+        if string.lower(name) == lowerName then
+            return members, name  -- return members and actual stored name
+        end
+    end
+    return nil, nil
+end
+
+-- Add items matching filter to a group (creates group if needed)
+-- Respects exclusions when adding via filter
+-- Returns: added (table), skipped (table), isNewGroup (bool)
+function Lib1701.AddToGroup(groups, groupName, filter, getAllItemsFn, exclusions)
+    local added = {}
+    local skipped = {}
+
+    -- Get or create group
+    local members, storedName = Lib1701.GetGroup(groups, groupName)
+    local isNewGroup = (members == nil)
+    if isNewGroup then
+        storedName = groupName
+        groups[storedName] = {}
+        members = groups[storedName]
+    end
+
+    local allItems = getAllItemsFn()
+    for _, item in ipairs(allItems) do
+        if Lib1701.MatchesFilter(item.name, filter) then
+            -- Check if exact match (bypasses exclusions)
+            local isExact = Lib1701.IsExactMatch(item.name, filter)
+
+            -- Check if excluded (unless exact match)
+            if not isExact and Lib1701.IsExcluded(exclusions, item.name) then
+                table.insert(skipped, item.name)
+            else
+                -- Check if already in group
+                local alreadyInGroup = false
+                for _, member in ipairs(members) do
+                    if string.lower(member) == string.lower(item.name) then
+                        alreadyInGroup = true
+                        break
+                    end
+                end
+
+                if not alreadyInGroup then
+                    table.insert(members, item.name)
+                    table.insert(added, item.name)
+                end
+            end
+        end
+    end
+
+    -- If nothing was added to a new group, remove the empty group
+    if isNewGroup and table.getn(members) == 0 then
+        groups[storedName] = nil
+        isNewGroup = false
+    end
+
+    return added, skipped, isNewGroup
+end
+
+-- Remove items matching filter from a group
+-- Returns: removed (table), groupDeleted (bool)
+function Lib1701.RemoveFromGroup(groups, groupName, filter)
+    local removed = {}
+
+    local members, storedName = Lib1701.GetGroup(groups, groupName)
+    if not members then
+        return removed, false
+    end
+
+    local toRemove = {}
+    for i, member in ipairs(members) do
+        if Lib1701.MatchesFilter(member, filter) then
+            table.insert(toRemove, i)
+            table.insert(removed, member)
+        end
+    end
+
+    -- Remove in reverse order
+    for i = table.getn(toRemove), 1, -1 do
+        table.remove(members, toRemove[i])
+    end
+
+    -- Delete group if empty
+    local groupDeleted = false
+    if table.getn(members) == 0 then
+        groups[storedName] = nil
+        groupDeleted = true
+    end
+
+    return removed, groupDeleted
+end
