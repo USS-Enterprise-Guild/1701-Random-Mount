@@ -641,6 +641,16 @@ local function HandleGroup(args)
     end
 end
 
+-- Reserved command names
+local RESERVED_COMMANDS = {
+    debug = true,
+    exclude = true,
+    unexclude = true,
+    excludelist = true,
+    group = true,
+    groups = true,
+}
+
 -- Slash command handler
 local function SlashCmdHandler(msg)
     -- Trim whitespace
@@ -648,10 +658,43 @@ local function SlashCmdHandler(msg)
         msg = string.gsub(msg, "^%s*(.-)%s*$", "%1")
     end
 
-    if msg == "debug" then
+    -- Parse first word and rest
+    local _, _, cmd, rest = string.find(msg or "", "^(%S+)%s*(.*)$")
+    local lowerCmd = string.lower(cmd or "")
+
+    -- Handle empty command
+    if not cmd or cmd == "" then
+        DoRandomMount(nil)
+        return
+    end
+
+    -- Handle reserved commands
+    if lowerCmd == "debug" then
         DoDebug()
+    elseif lowerCmd == "exclude" then
+        HandleExclude(rest)
+    elseif lowerCmd == "unexclude" then
+        HandleUnexclude(rest)
+    elseif lowerCmd == "excludelist" then
+        HandleExcludeList()
+    elseif lowerCmd == "group" then
+        HandleGroup(rest)
+    elseif lowerCmd == "groups" then
+        HandleGroupsList()
     else
-        DoRandomMount(msg)
+        -- Check if it's a group name
+        local groupMounts = GetGroupMounts(cmd)
+        if groupMounts then
+            if table.getn(groupMounts) == 0 then
+                Msg("No available mounts in group '" .. cmd .. "'")
+            else
+                local mount = groupMounts[math.random(1, table.getn(groupMounts))]
+                UseMount(mount)
+            end
+        else
+            -- Treat as filter
+            DoRandomMount(msg)
+        end
     end
 end
 
