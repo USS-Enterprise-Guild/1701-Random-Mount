@@ -1,14 +1,25 @@
 --[[
     1701 Random Mount - Random Mount Selector for WoW 1.12 / Turtle WoW
 
-    Usage: /mount [filter]
+    Usage: /mount [filter|group]
 
     Examples:
-        /mount          - Random mount from all available
-        /mount turtle   - Random turtle mount
-        /mount tiger    - Random tiger mount
-        /mount epic     - Random epic mount
-        /mount debug    - Show detected mounts and spellbook contents
+        /mount              - Random mount from all available
+        /mount turtle       - Random mount matching "turtle"
+        /mount epic         - Random epic mount (if "epic" isn't a group)
+        /mount favorites    - Random mount from "favorites" group
+        /mount debug        - Show detected mounts and spellbook contents
+
+    Exclusions:
+        /mount exclude <filter>   - Exclude mounts matching filter
+        /mount unexclude <filter> - Remove from exclusion list
+        /mount excludelist        - Show all excluded mounts
+
+    Groups:
+        /mount group add <name> <filter or CSV>    - Add mounts to group
+        /mount group remove <name> <filter or CSV> - Remove from group
+        /mount group list <name>                   - Show mounts in group
+        /mount groups                              - List all groups
 ]]
 
 RandomMount1701 = {}
