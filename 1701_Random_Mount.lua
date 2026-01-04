@@ -439,6 +439,62 @@ local function DoDebug()
     DEFAULT_CHAT_FRAME:AddMessage("Total spells scanned: " .. totalSpells)
 end
 
+-- Message helper
+local function Msg(text)
+    Lib1701.Message("1701_Random_Mount", text)
+end
+
+-- Handle /mount exclude <filter>
+local function HandleExclude(args)
+    if not args or args == "" then
+        Msg("Usage: /mount exclude <name or filter>")
+        return
+    end
+
+    local added, alreadyExcluded = Lib1701.AddExclusions(
+        RandomMount1701_Data.exclusions,
+        args,
+        function() return GetAllMounts(nil) end
+    )
+
+    if table.getn(added) > 0 then
+        Msg("Excluded: " .. table.concat(added, ", ") .. " (" .. table.getn(added) .. " mounts)")
+    end
+    if table.getn(alreadyExcluded) > 0 then
+        Msg("Already excluded: " .. table.concat(alreadyExcluded, ", "))
+    end
+    if table.getn(added) == 0 and table.getn(alreadyExcluded) == 0 then
+        Msg("No mounts found matching '" .. args .. "'")
+    end
+end
+
+-- Handle /mount unexclude <filter>
+local function HandleUnexclude(args)
+    if not args or args == "" then
+        Msg("Usage: /mount unexclude <name or filter>")
+        return
+    end
+
+    local removed, notFound = Lib1701.RemoveExclusions(RandomMount1701_Data.exclusions, args)
+
+    if table.getn(removed) > 0 then
+        Msg("Unexcluded: " .. table.concat(removed, ", ") .. " (" .. table.getn(removed) .. " mounts)")
+    end
+    if table.getn(notFound) > 0 then
+        Msg("'" .. args .. "' was not in exclusion list")
+    end
+end
+
+-- Handle /mount excludelist
+local function HandleExcludeList()
+    local exclusions = RandomMount1701_Data.exclusions
+    if table.getn(exclusions) == 0 then
+        Msg("No mounts excluded")
+    else
+        Msg("Excluded mounts (" .. table.getn(exclusions) .. "): " .. table.concat(exclusions, ", "))
+    end
+end
+
 -- Slash command handler
 local function SlashCmdHandler(msg)
     -- Trim whitespace
