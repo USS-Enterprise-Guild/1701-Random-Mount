@@ -5,7 +5,7 @@
     Only the first (or newer) version initializes.
 ]]
 
-local LIB_VERSION = 2
+local LIB_VERSION = 3
 if Lib1701 and Lib1701.version >= LIB_VERSION then
     return
 end
@@ -78,8 +78,16 @@ end
 -- Add items matching filter to exclusion list
 -- Returns: added (table), alreadyExcluded (table)
 function Lib1701.AddExclusions(exclusions, filter, getAllItemsFn)
+    if not exclusions then
+        return {}, {}
+    end
+
     local added = {}
     local alreadyExcluded = {}
+
+    if not getAllItemsFn then
+        return added, alreadyExcluded
+    end
 
     local allItems = getAllItemsFn()
     for _, item in ipairs(allItems) do
@@ -99,6 +107,10 @@ end
 -- Remove items matching filter from exclusion list
 -- Returns: removed (table), notFound (table)
 function Lib1701.RemoveExclusions(exclusions, filter)
+    if not exclusions then
+        return {}, {}
+    end
+
     local removed = {}
     local toRemove = {}
 
