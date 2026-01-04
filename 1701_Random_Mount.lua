@@ -419,6 +419,18 @@ end
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("VARIABLES_LOADED")
 frame:SetScript("OnEvent", function()
+    -- Initialize SavedVariables
+    if not RandomMount1701_Data then
+        RandomMount1701_Data = {}
+    end
+    if not RandomMount1701_Data.exclusions then
+        RandomMount1701_Data.exclusions = {}
+    end
+    if not RandomMount1701_Data.groups then
+        RandomMount1701_Data.groups = {}
+    end
+
+    -- Register slash command
     SLASH_RANDOMMOUNT17011 = "/mount"
     SlashCmdList["RANDOMMOUNT1701"] = SlashCmdHandler
 end)
