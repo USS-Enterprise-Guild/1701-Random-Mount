@@ -328,6 +328,28 @@ local function GetAllMounts(filter)
     return allMounts
 end
 
+-- Get mounts from a specific group
+local function GetGroupMounts(groupName)
+    local members = Lib1701.GetGroup(RandomMount1701_Data.groups, groupName)
+    if not members then
+        return nil
+    end
+
+    local mounts = {}
+    local allMounts = GetAllMounts(nil)  -- Get all mounts without filter
+
+    for _, member in ipairs(members) do
+        for _, mount in ipairs(allMounts) do
+            if string.lower(mount.name) == string.lower(member) then
+                table.insert(mounts, mount)
+                break
+            end
+        end
+    end
+
+    return mounts
+end
+
 -- Use a mount
 local function UseMount(mount)
     if mount.type == "item" then
