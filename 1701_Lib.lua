@@ -5,7 +5,7 @@
     Only the first (or newer) version initializes.
 ]]
 
-local LIB_VERSION = 1
+local LIB_VERSION = 2
 if Lib1701 and Lib1701.version >= LIB_VERSION then
     return
 end
@@ -41,6 +41,9 @@ end
 
 -- Check if name matches filter (substring, case-insensitive)
 function Lib1701.MatchesFilter(name, filter)
+    if not name then
+        return false
+    end
     if not filter or filter == "" then
         return true
     end
@@ -49,6 +52,9 @@ end
 
 -- Check if name exactly matches filter (case-insensitive)
 function Lib1701.IsExactMatch(name, filter)
+    if not name then
+        return false
+    end
     if not filter or filter == "" then
         return false
     end
