@@ -297,6 +297,33 @@ local function GetSpellMounts(filter, skipExclusions)
                 })
             end
         end
+
+        -- Also scan all spells for class mount spells (Paladin/Warlock)
+        -- These are in class tabs, not ZMounts
+        local seenNames = {}
+        for _, mount in ipairs(mounts) do
+            seenNames[string.lower(mount.name)] = true
+        end
+
+        local i = 1
+        while true do
+            local spellName = GetSpellName(i, BOOKTYPE_SPELL)
+            if not spellName then
+                break
+            end
+
+            if CLASS_MOUNT_SPELLS[spellName] and not seenNames[string.lower(spellName)] then
+                if ShouldIncludeMount(spellName, filter, skipExclusions) then
+                    table.insert(mounts, {
+                        type = "spell",
+                        name = spellName,
+                        spellIndex = i
+                    })
+                    seenNames[string.lower(spellName)] = true
+                end
+            end
+            i = i + 1
+        end
     else
         -- Fallback: scan all spells using pattern matching (for non-Turtle WoW)
         local i = 1
