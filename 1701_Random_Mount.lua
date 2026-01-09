@@ -354,11 +354,16 @@ local function DoRandomMount(filter)
     -- Parse input as list (handles single items, CSV, and consecutive links)
     local filters = Lib1701.ParseInputList(filter)
 
-    for _, f in ipairs(filters) do
-        for _, mount in ipairs(GetAllMounts(f)) do
-            if not seen[string.lower(mount.name)] then
-                seen[string.lower(mount.name)] = true
-                table.insert(mounts, mount)
+    -- If no filter provided, get all mounts
+    if table.getn(filters) == 0 then
+        mounts = GetAllMounts(nil)
+    else
+        for _, f in ipairs(filters) do
+            for _, mount in ipairs(GetAllMounts(f)) do
+                if not seen[string.lower(mount.name)] then
+                    seen[string.lower(mount.name)] = true
+                    table.insert(mounts, mount)
+                end
             end
         end
     end
