@@ -1,7 +1,7 @@
 --[[
     1701 Random Mount - Random Mount Selector for WoW 1.12 / Turtle WoW
 
-    Usage: /mount [filter|group]
+    Usage: /mount [filter|group|list]
 
     Examples:
         /mount              - Random mount from all available
@@ -10,16 +10,25 @@
         /mount favorites    - Random mount from "favorites" group
         /mount debug        - Show detected mounts and spellbook contents
 
+    Mount Lists:
+        /mount [Mount1][Mount2][Mount3]  - Random from pasted spell links
+        /mount turtle, swift, raptor     - Random from mounts matching any filter
+
     Exclusions:
-        /mount exclude <filter>   - Exclude mounts matching filter
-        /mount unexclude <filter> - Remove from exclusion list
-        /mount excludelist        - Show all excluded mounts
+        /mount exclude <filter or CSV>   - Exclude mounts (supports item links)
+        /mount unexclude <filter or CSV> - Remove from exclusion list
+        /mount excludelist               - Show all excluded mounts
 
     Groups:
         /mount group add <name> <filter or CSV>    - Add mounts to group
         /mount group remove <name> <filter or CSV> - Remove from group
         /mount group list <name>                   - Show mounts in group
         /mount groups                              - List all groups
+
+    Item Links & CSV:
+        All commands accept item/spell links from chat (shift-click)
+        and comma-separated lists: "mount1, mount2, [Mount Link]"
+        Consecutive links work without commas: [Mount1][Mount2]
 ]]
 
 RandomMount1701 = {}
@@ -192,30 +201,6 @@ local function IsMountSpell(spellName)
     return false
 end
 
--- Check if an item name matches mount patterns
-local function IsMountItem(itemName)
-    if not itemName then return false end
-
-    local lowerName = string.lower(itemName)
-
-    -- Check for common mount keywords
-    if string.find(lowerName, "mount") or
-       string.find(lowerName, "reins") or
-       string.find(lowerName, "horn of the") or
-       string.find(lowerName, "whistle") then
-        return true
-    end
-
-    -- Check against known mount patterns
-    for _, pattern in ipairs(MOUNT_PATTERNS) do
-        if string.find(lowerName, string.lower(pattern)) then
-            return true
-        end
-    end
-
-    return false
-end
-
 -- Check if item name matches the filter
 local function MatchesFilter(itemName, filter)
     if not filter or filter == "" then
@@ -238,32 +223,6 @@ local function ShouldIncludeMount(mountName, filter, skipExclusions)
 
     -- Apply normal filter
     return MatchesFilter(mountName, filter)
-end
-
--- Scan bags for mount items
-local function GetBagMounts(filter, skipExclusions)
-    local mounts = {}
-
-    for bag = 0, 4 do
-        local numSlots = GetContainerNumSlots(bag)
-        for slot = 1, numSlots do
-            local itemLink = GetContainerItemLink(bag, slot)
-            if itemLink then
-                -- Extract item name from link
-                local _, _, itemName = string.find(itemLink, "%[(.+)%]")
-                if itemName and IsMountItem(itemName) and ShouldIncludeMount(itemName, filter, skipExclusions) then
-                    table.insert(mounts, {
-                        type = "item",
-                        name = itemName,
-                        bag = bag,
-                        slot = slot
-                    })
-                end
-            end
-        end
-    end
-
-    return mounts
 end
 
 -- Scan spellbook for mount spells (uses ZMounts tab on Turtle WoW)
@@ -349,21 +308,7 @@ end
 
 -- Get all available mounts
 local function GetAllMounts(filter, skipExclusions)
-    local allMounts = {}
-
-    -- Get bag mounts
-    local bagMounts = GetBagMounts(filter, skipExclusions)
-    for _, mount in ipairs(bagMounts) do
-        table.insert(allMounts, mount)
-    end
-
-    -- Get spell mounts
-    local spellMounts = GetSpellMounts(filter, skipExclusions)
-    for _, mount in ipairs(spellMounts) do
-        table.insert(allMounts, mount)
-    end
-
-    return allMounts
+    return GetSpellMounts(filter, skipExclusions)
 end
 
 -- Get mounts from a specific group
@@ -390,11 +335,7 @@ end
 
 -- Use a mount
 local function UseMount(mount)
-    if mount.type == "item" then
-        UseContainerItem(mount.bag, mount.slot)
-    elseif mount.type == "spell" then
-        CastSpell(mount.spellIndex, BOOKTYPE_SPELL)
-    end
+    CastSpell(mount.spellIndex, BOOKTYPE_SPELL)
 end
 
 -- Main mount function
@@ -407,13 +348,26 @@ local function DoRandomMount(filter)
         end
     end
 
-    local mounts = GetAllMounts(filter)
+    local mounts = {}
+    local seen = {}
+
+    -- Parse input as list (handles single items, CSV, and consecutive links)
+    local filters = Lib1701.ParseInputList(filter)
+
+    for _, f in ipairs(filters) do
+        for _, mount in ipairs(GetAllMounts(f)) do
+            if not seen[string.lower(mount.name)] then
+                seen[string.lower(mount.name)] = true
+                table.insert(mounts, mount)
+            end
+        end
+    end
 
     if table.getn(mounts) == 0 then
         if filter then
             DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_Random_Mount:|r No mounts found matching '" .. filter .. "'")
         else
-            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_Random_Mount:|r No mounts found in your bags or spellbook.")
+            DEFAULT_CHAT_FRAME:AddMessage("|cFF00FFFF1701_Random_Mount:|r No mounts found in your spellbook.")
         end
         return
     end
@@ -482,44 +436,62 @@ local function Msg(text)
     Lib1701.Message("1701_Random_Mount", text)
 end
 
--- Handle /mount exclude <filter>
+-- Handle /mount exclude <filter or CSV>
 local function HandleExclude(args)
     if not args or args == "" then
-        Msg("Usage: /mount exclude <name or filter>")
+        Msg("Usage: /mount exclude <name, filter, or CSV list>")
         return
     end
 
-    local added, alreadyExcluded = Lib1701.AddExclusions(
-        RandomMount1701_Data.exclusions,
-        args,
-        function() return GetAllMounts(nil, true) end  -- Skip exclusions to see all mounts
-    )
+    local allAdded = {}
+    local allAlreadyExcluded = {}
 
-    if table.getn(added) > 0 then
-        Msg("Excluded: " .. table.concat(added, ", ") .. " (" .. table.getn(added) .. " mounts)")
+    -- Parse input list (handles item links and CSV)
+    local filters = Lib1701.ParseInputList(args)
+    for _, filter in ipairs(filters) do
+        local added, alreadyExcluded = Lib1701.AddExclusions(
+            RandomMount1701_Data.exclusions,
+            filter,
+            function() return GetAllMounts(nil, true) end  -- Skip exclusions to see all mounts
+        )
+        for _, name in ipairs(added) do table.insert(allAdded, name) end
+        for _, name in ipairs(alreadyExcluded) do table.insert(allAlreadyExcluded, name) end
     end
-    if table.getn(alreadyExcluded) > 0 then
-        Msg("Already excluded: " .. table.concat(alreadyExcluded, ", "))
+
+    if table.getn(allAdded) > 0 then
+        Msg("Excluded: " .. table.concat(allAdded, ", ") .. " (" .. table.getn(allAdded) .. " mounts)")
     end
-    if table.getn(added) == 0 and table.getn(alreadyExcluded) == 0 then
+    if table.getn(allAlreadyExcluded) > 0 then
+        Msg("Already excluded: " .. table.concat(allAlreadyExcluded, ", "))
+    end
+    if table.getn(allAdded) == 0 and table.getn(allAlreadyExcluded) == 0 then
         Msg("No mounts found matching '" .. args .. "'")
     end
 end
 
--- Handle /mount unexclude <filter>
+-- Handle /mount unexclude <filter or CSV>
 local function HandleUnexclude(args)
     if not args or args == "" then
-        Msg("Usage: /mount unexclude <name or filter>")
+        Msg("Usage: /mount unexclude <name, filter, or CSV list>")
         return
     end
 
-    local removed, notFound = Lib1701.RemoveExclusions(RandomMount1701_Data.exclusions, args)
+    local allRemoved = {}
+    local anyNotFound = false
 
-    if table.getn(removed) > 0 then
-        Msg("Unexcluded: " .. table.concat(removed, ", ") .. " (" .. table.getn(removed) .. " mounts)")
+    -- Parse input list (handles item links and CSV)
+    local filters = Lib1701.ParseInputList(args)
+    for _, filter in ipairs(filters) do
+        local removed, notFound = Lib1701.RemoveExclusions(RandomMount1701_Data.exclusions, filter)
+        for _, name in ipairs(removed) do table.insert(allRemoved, name) end
+        if table.getn(notFound) > 0 then anyNotFound = true end
     end
-    if table.getn(notFound) > 0 then
-        Msg("'" .. args .. "' was not in exclusion list")
+
+    if table.getn(allRemoved) > 0 then
+        Msg("Unexcluded: " .. table.concat(allRemoved, ", ") .. " (" .. table.getn(allRemoved) .. " mounts)")
+    end
+    if anyNotFound and table.getn(allRemoved) == 0 then
+        Msg("No matching mounts found in exclusion list")
     end
 end
 
@@ -547,6 +519,13 @@ local function HandleGroupAdd(args)
         return
     end
 
+    -- Validate group name format
+    local isValid, errorMsg = Lib1701.IsValidGroupName(groupName)
+    if not isValid then
+        Msg(errorMsg)
+        return
+    end
+
     -- Check for reserved names
     local reserved = {debug=1, exclude=1, unexclude=1, excludelist=1, group=1, groups=1}
     if reserved[string.lower(groupName)] then
@@ -558,8 +537,8 @@ local function HandleGroupAdd(args)
     local allSkipped = {}
     local isNewGroup = false
 
-    -- Parse CSV and process each filter
-    local filters = Lib1701.ParseCSV(filter)
+    -- Parse input list (handles item links and CSV)
+    local filters = Lib1701.ParseInputList(filter)
     for _, f in ipairs(filters) do
         local added, skipped, isNew = Lib1701.AddToGroup(
             RandomMount1701_Data.groups,
@@ -609,8 +588,8 @@ local function HandleGroupRemove(args)
     local allRemoved = {}
     local groupDeleted = false
 
-    -- Parse CSV and process each filter
-    local filters = Lib1701.ParseCSV(filter)
+    -- Parse input list (handles item links and CSV)
+    local filters = Lib1701.ParseInputList(filter)
     for _, f in ipairs(filters) do
         local removed, deleted = Lib1701.RemoveFromGroup(RandomMount1701_Data.groups, groupName, f)
         for _, name in ipairs(removed) do table.insert(allRemoved, name) end

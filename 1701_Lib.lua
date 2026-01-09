@@ -5,7 +5,7 @@
     Only the first (or newer) version initializes.
 ]]
 
-local LIB_VERSION = 3
+local LIB_VERSION = 6
 if Lib1701 and Lib1701.version >= LIB_VERSION then
     return
 end
@@ -39,6 +39,55 @@ function Lib1701.ParseCSV(input)
     return results
 end
 
+-- Extract name from a spell/item link, or return original text
+-- Handles: |cffffffff|Hspell:12345|h[Spell Name]|h|r -> "Spell Name"
+-- Also handles plain [Name] -> "Name"
+function Lib1701.ExtractLinkName(text)
+    if not text then
+        return nil
+    end
+
+    -- Try to extract name from full link format: |c...|H...|h[Name]|h|r
+    local _, _, name = string.find(text, "|h%[(.-)%]|h")
+    if name then
+        return name
+    end
+
+    -- Try plain bracket format: [Name]
+    _, _, name = string.find(text, "^%[(.-)%]$")
+    if name then
+        return name
+    end
+
+    -- Return original text (trimmed)
+    return string.gsub(text, "^%s*(.-)%s*$", "%1")
+end
+
+-- Parse input as comma-separated list, extracting link names
+-- Also supports consecutive spell links without commas: [Pet1][Pet2]
+-- Returns table of names (strings)
+function Lib1701.ParseInputList(input)
+    if not input or input == "" then
+        return {}
+    end
+
+    -- Insert commas between consecutive links
+    local normalized = string.gsub(input, "|r|c", "|r,|c")  -- full links
+    normalized = string.gsub(normalized, "%]%[", "],[")     -- plain brackets
+
+    local items = Lib1701.ParseCSV(normalized)
+    local results = {}
+
+    for _, item in ipairs(items) do
+        local name = Lib1701.ExtractLinkName(item)
+        if name and name ~= "" then
+            table.insert(results, name)
+        end
+    end
+
+    return results
+end
+
 -- Check if name matches filter (substring, case-insensitive)
 function Lib1701.MatchesFilter(name, filter)
     if not name then
@@ -59,6 +108,26 @@ function Lib1701.IsExactMatch(name, filter)
         return false
     end
     return string.lower(name) == string.lower(filter)
+end
+
+-- Validate group name: alphanumeric, hyphen, underscore only
+-- Returns: isValid (bool), errorMsg (string or nil)
+function Lib1701.IsValidGroupName(name)
+    if not name or name == "" then
+        return false, "Group name cannot be empty"
+    end
+
+    -- Check for link characters (item/spell links)
+    if string.find(name, "|") or string.find(name, "%[") or string.find(name, "%]") then
+        return false, "Group name cannot be an item or spell link"
+    end
+
+    -- Check for valid characters only (alphanumeric, hyphen, underscore)
+    if string.find(name, "[^%w%-_]") then
+        return false, "Group name can only contain letters, numbers, hyphens, and underscores"
+    end
+
+    return true, nil
 end
 
 -- Check if a name is in the exclusion list
