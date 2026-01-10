@@ -33,6 +33,17 @@
 
 RandomMount1701 = {}
 
+-- Minimum required lib version (for IsValidGroupName)
+local REQUIRED_LIB_VERSION = 5
+
+-- Check lib version on load
+if not Lib1701 or Lib1701.version < REQUIRED_LIB_VERSION then
+    local msg = "1701_Random_Mount requires Lib1701 version " .. REQUIRED_LIB_VERSION ..
+                " or higher. Please update all 1701 addons."
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000" .. msg .. "|r")
+    return
+end
+
 -- Known mount item names (partial matches supported)
 -- This list covers vanilla WoW mounts
 local MOUNT_PATTERNS = {
