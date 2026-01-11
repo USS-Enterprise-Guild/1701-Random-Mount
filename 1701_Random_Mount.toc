@@ -1,7 +1,7 @@
 ## Interface: 11200
 ## Title: 1701 Addons - Random Mount
 ## Notes: Random mount selector with optional keyword filtering
-## Author: Claude
+## Author: Kilaire
 ## Version: 1.4.2
 ## SavedVariables: RandomMount1701_Data
 
