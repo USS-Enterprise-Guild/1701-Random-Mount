@@ -183,6 +183,33 @@ local CLASS_MOUNT_SPELLS = {
     ["Summon Dreadsteed"] = true,
 }
 
+-- Zones where only specific mounts are usable
+local RESTRICTED_ZONES = {
+    ["Ahn'Qiraj"] = true,           -- AQ40 (Temple)
+    ["Ruins of Ahn'Qiraj"] = true,  -- AQ20 (Ruins)
+}
+
+-- Mount patterns that work in AQ
+local AQ_MOUNT_PATTERNS = {
+    "Qiraji Battle Tank",  -- Matches: Black, Blue, Green, Yellow, Red
+}
+
+-- Check if player is in a zone with mount restrictions
+local function IsInRestrictedZone()
+    local zone = GetRealZoneText()
+    return RESTRICTED_ZONES[zone] ~= nil
+end
+
+-- Check if a mount is usable in AQ
+local function IsAQMount(mountName)
+    for _, pattern in ipairs(AQ_MOUNT_PATTERNS) do
+        if string.find(mountName, pattern) then
+            return true
+        end
+    end
+    return false
+end
+
 -- Check if a spell name matches mount patterns
 local function IsMountSpell(spellName)
     if not spellName then return false end
@@ -319,7 +346,24 @@ end
 
 -- Get all available mounts
 local function GetAllMounts(filter, skipExclusions)
-    return GetSpellMounts(filter, skipExclusions)
+    local mounts = GetSpellMounts(filter, skipExclusions)
+
+    -- Filter for zone restrictions (e.g., AQ only allows Qiraji Battle Tanks)
+    if IsInRestrictedZone() then
+        local zoneMounts = {}
+        for _, mount in ipairs(mounts) do
+            if IsAQMount(mount.name) then
+                table.insert(zoneMounts, mount)
+            end
+        end
+        -- Only use filtered list if we found eligible mounts
+        if table.getn(zoneMounts) > 0 then
+            return zoneMounts
+        end
+        -- Fall back to all mounts if no zone-eligible mounts available
+    end
+
+    return mounts
 end
 
 -- Get mounts from a specific group
