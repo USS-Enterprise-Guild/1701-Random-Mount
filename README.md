@@ -6,6 +6,7 @@ A World of Warcraft 1.12 addon that randomly selects and uses a mount from your 
 
 - Randomly select from all available mounts with a single command
 - Filter mounts by keyword (e.g., `/mount tiger` for tiger mounts only)
+- **Zone-aware filtering** - Automatically filters to usable mounts in restricted zones (e.g., only Qiraji Battle Tanks in AQ)
 - **Mount exclusions** - Permanently exclude mounts from random selection
 - **Custom groups** - Create named groups for quick access to mount subsets
 - Automatic detection of mounts from the ZMounts spellbook tab (Turtle WoW)
@@ -154,6 +155,9 @@ RandomMount1701.DoRandomMount("swift")
 
 ## Version History
 
+- **1.5.0** - Zone-aware mount filtering (auto-filters to Qiraji Battle Tanks in AQ)
+- **1.4.2** - Add lib version check to prevent crashes with older lib
+- **1.4.1** - Fix /mount with no arguments returning no mounts
 - **1.3.1** - Excluded mounts skipped when adding to groups, exact match bypasses exclusions
 - **1.3.0** - Add mount exclusions and groups feature
 - **1.2.0** - Use ZMounts spellbook tab for mount detection on Turtle WoW
