@@ -155,6 +155,7 @@ RandomMount1701.DoRandomMount("swift")
 
 ## Version History
 
+- **1.5.1** - Exclude AQ mounts outside of AQ (they only work inside)
 - **1.5.0** - Zone-aware mount filtering (auto-filters to Qiraji Battle Tanks in AQ)
 - **1.4.2** - Add lib version check to prevent crashes with older lib
 - **1.4.1** - Fix /mount with no arguments returning no mounts
