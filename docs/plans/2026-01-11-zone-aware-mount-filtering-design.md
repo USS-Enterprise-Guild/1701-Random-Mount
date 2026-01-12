@@ -2,11 +2,11 @@
 
 ## Overview
 
-Automatically filter mounts based on the player's current zone. When in restricted zones like Ahn'Qiraj (AQ20/AQ40), only show mounts that are usable in that zone.
+Automatically filter mounts based on the player's current zone. Qiraji Battle Tanks only work inside AQ, and regular mounts only work outside AQ.
 
 ## Problem
 
-Currently, `/mount` treats all mounts as universally available. In AQ raids, only Qiraji Battle Tanks work - all other mounts fail with a game error. Users must manually filter or use groups to avoid selecting unusable mounts.
+Currently, `/mount` treats all mounts as universally available. In AQ raids, only Qiraji Battle Tanks work - all other mounts fail with a game error. Conversely, Qiraji Battle Tanks cannot be used outside AQ. Users must manually filter or use groups to avoid selecting unusable mounts.
 
 ## Solution
 
@@ -82,15 +82,18 @@ end
 | `/mount` in AQ | Random from Qiraji Battle Tanks only |
 | `/mount black` in AQ | Black Qiraji Battle Tank (if owned) |
 | `/mount` in AQ, no AQ mounts | Falls back to all mounts |
-| `/mount` outside AQ | Normal behavior (all mounts) |
+| `/mount` outside AQ | Random from non-AQ mounts (excludes Qiraji tanks) |
+| `/mount` outside AQ, only AQ mounts | Falls back to all mounts |
 | Groups in AQ | Filtered to AQ-eligible mounts in that group |
+| Groups outside AQ | Filtered to exclude AQ mounts |
 
 ## Edge Cases
 
-1. **No AQ mounts owned**: Falls back to all mounts. User gets game error but isn't blocked.
-2. **Filters in AQ**: Filter applied to AQ-eligible mounts only.
-3. **Groups in AQ**: Zone filtering applies to group members.
-4. **Exact mount name**: Works as expected.
+1. **No AQ mounts owned (in AQ)**: Falls back to all mounts. User gets game error but isn't blocked.
+2. **Only AQ mounts owned (outside AQ)**: Falls back to all mounts. User gets game error but isn't blocked.
+3. **Filters in AQ**: Filter applied to AQ-eligible mounts only.
+4. **Groups**: Zone filtering applies to group members.
+5. **Exact mount name**: Works as expected.
 
 ## What We're NOT Adding
 

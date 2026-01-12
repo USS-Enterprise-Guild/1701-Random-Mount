@@ -348,8 +348,9 @@ end
 local function GetAllMounts(filter, skipExclusions)
     local mounts = GetSpellMounts(filter, skipExclusions)
 
-    -- Filter for zone restrictions (e.g., AQ only allows Qiraji Battle Tanks)
+    -- Filter for zone restrictions
     if IsInRestrictedZone() then
+        -- In AQ: only allow Qiraji Battle Tanks
         local zoneMounts = {}
         for _, mount in ipairs(mounts) do
             if IsAQMount(mount.name) then
@@ -361,6 +362,19 @@ local function GetAllMounts(filter, skipExclusions)
             return zoneMounts
         end
         -- Fall back to all mounts if no zone-eligible mounts available
+    else
+        -- Outside AQ: exclude Qiraji Battle Tanks (they only work in AQ)
+        local normalMounts = {}
+        for _, mount in ipairs(mounts) do
+            if not IsAQMount(mount.name) then
+                table.insert(normalMounts, mount)
+            end
+        end
+        -- Only use filtered list if we have other mounts
+        if table.getn(normalMounts) > 0 then
+            return normalMounts
+        end
+        -- Fall back to all mounts if user only has AQ mounts
     end
 
     return mounts
