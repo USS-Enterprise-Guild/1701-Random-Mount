@@ -12,6 +12,7 @@ A World of Warcraft 1.12 addon that randomly selects and uses a mount from your 
 - Automatic detection of mounts from the ZMounts spellbook tab (Turtle WoW)
 - Fallback pattern matching for vanilla WoW mount detection
 - Saved variables persist exclusions and groups between sessions
+- **Mounted detection** - `RM_IsMounted()` and `RM_Dismount()` functions for macro use
 - Debug command to troubleshoot mount detection
 
 ## Installation
@@ -117,6 +118,22 @@ Use a group when holding Shift, otherwise random from all:
 /run SlashCmdList["RANDOMMOUNT1701"](IsShiftKeyDown() and "favorites" or "")
 ```
 
+### Dismount / Mount Toggle
+
+Dismount if mounted, otherwise mount up:
+
+```
+/script if RM_IsMounted() then RM_Dismount() else RandomMount1701.DoRandomMount() end
+```
+
+### Combat-Aware Dismount / Mount
+
+Dismount if mounted, mount only if out of combat:
+
+```
+/script if RM_IsMounted() then RM_Dismount() elseif not UnitAffectingCombat("player") then RandomMount1701.DoRandomMount() end
+```
+
 ## How It Works
 
 ### Turtle WoW
@@ -151,10 +168,21 @@ local mounts = RandomMount1701.GetAllMounts("tiger")
 
 -- Use a random mount (optionally filtered)
 RandomMount1701.DoRandomMount("swift")
+
+-- Check if player is mounted (returns true/false, buffIndex)
+local mounted, buffIdx = RandomMount1701.IsMounted()
+
+-- Dismount if mounted (returns true if dismounted)
+local didDismount = RandomMount1701.Dismount()
+
+-- Global shortcuts for macros
+RM_IsMounted()  -- Same as RandomMount1701.IsMounted()
+RM_Dismount()   -- Same as RandomMount1701.Dismount()
 ```
 
 ## Version History
 
+- **1.6.0** - Add mounted detection (`RM_IsMounted()`, `RM_Dismount()`) via tooltip scanning
 - **1.5.1** - Exclude AQ mounts outside of AQ (they only work inside)
 - **1.5.0** - Zone-aware mount filtering (auto-filters to Qiraji Battle Tanks in AQ)
 - **1.4.2** - Add lib version check to prevent crashes with older lib
