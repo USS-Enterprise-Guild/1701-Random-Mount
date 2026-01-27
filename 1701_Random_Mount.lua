@@ -25,6 +25,13 @@
         /mount group list <name>                   - Show mounts in group
         /mount groups                              - List all groups
 
+    Mounted Detection (for macros):
+        RM_IsMounted()  - Returns true if player is mounted
+        RM_Dismount()   - Dismounts if mounted, returns true if dismounted
+
+        Example macro:
+        /script if RM_IsMounted() then RM_Dismount() else RandomMount1701.DoRandomMount() end
+
     Item Links & CSV:
         All commands accept item/spell links from chat (shift-click)
         and comma-separated lists: "mount1, mount2, [Mount Link]"
@@ -405,6 +412,62 @@ end
 -- Use a mount
 local function UseMount(mount)
     CastSpell(mount.spellIndex, BOOKTYPE_SPELL)
+end
+
+-- Hidden tooltip for buff scanning (created on first use)
+local scanTooltip = nil
+
+local function GetScanTooltip()
+    if not scanTooltip then
+        scanTooltip = CreateFrame("GameTooltip", "RandomMount1701_ScanTooltip", nil, "GameTooltipTemplate")
+        scanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+    end
+    return scanTooltip
+end
+
+-- Check if player is currently mounted by scanning buff tooltips
+-- Looks for mount-specific text: "Riding", "Slow and steady", or "speed increased"
+local function IsMounted()
+    local tooltip = GetScanTooltip()
+
+    for i = 0, 23 do
+        local buff = GetPlayerBuff(i, "HELPFUL")
+        if buff > -1 then
+            tooltip:ClearLines()
+            tooltip:SetPlayerBuff(buff)
+
+            -- Check the second line of tooltip (description)
+            local textLine = getglobal("RandomMount1701_ScanTooltipTextLeft2")
+            if textLine then
+                local text = textLine:GetText()
+                if text then
+                    -- Check for mount indicators:
+                    -- "Riding" - standard mount buffs
+                    -- "Slow and steady" - turtle mounts
+                    -- "speed increased" - generic mount speed text
+                    -- "Speed scales with your Riding skill" - Turtle WoW mounts
+                    if string.find(text, "Riding") or
+                       string.find(text, "Slow and steady") or
+                       string.find(text, "speed increased") or
+                       string.find(text, "Speed scales") then
+                        return true, buff
+                    end
+                end
+            end
+        end
+    end
+    return false, nil
+end
+
+-- Dismount if currently mounted
+-- Returns true if dismounted, false if not mounted
+local function Dismount()
+    local mounted, buffIndex = IsMounted()
+    if mounted and buffIndex then
+        CancelPlayerBuff(buffIndex)
+        return true
+    end
+    return false
 end
 
 -- Main mount function
@@ -812,3 +875,10 @@ end)
 -- Export for external use
 RandomMount1701.GetAllMounts = GetAllMounts
 RandomMount1701.DoRandomMount = DoRandomMount
+RandomMount1701.IsMounted = IsMounted
+RandomMount1701.Dismount = Dismount
+
+-- Global convenience functions for macros
+-- Usage: /script if RM_IsMounted() then RM_Dismount() else YourMount() end
+RM_IsMounted = IsMounted
+RM_Dismount = Dismount
